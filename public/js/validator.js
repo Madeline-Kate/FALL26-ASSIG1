@@ -11,27 +11,17 @@
 //   - Fail safe: anything unexpected is rejected, never "fixed".
 // =====================================================================
 
+const { json } = require("express");
+
 const ALLOWED_STATUS = ["up", "degraded", "down"];
 const MAX_NAME_LENGTH = 64;
 
-/**
- * Validates ONE raw service entry received from the server.
- *
- * Returns a NEW object with exactly these four fields:
- *   { name: string, status: string, online: boolean, latencyMs: number }
- * or returns null if the entry is invalid.
- *
- * Rules:
- *   - raw must be a plain object: not null, not an array
- *   - name: a string; after trim() it must be non-empty and at most MAX_NAME_LENGTH chars.
- *           The returned name is the trimmed one.
- *   - status: exactly one of ALLOWED_STATUS. "UP" is NOT "up".
- *   - online: a real boolean. The string "false" is not a boolean.
- *   - latencyMs: a finite number, greater than or equal to 0. The string "120" is not a number.
- *   - Any extra field in raw, for example isAdmin, must NOT appear in the returned object.
- */
-function normalizeService(raw) {
-  // TODO Mission 1
+function normalizeService(raw) { 
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw) || !ALLOWED_STATUS.includes(raw.status) || typeof(raw.online) !== "boolean" || typeof(raw.latencyMs) !== "number" || raw.latencyMs < 0 || raw.latencyMs === Infinity || typeof raw.name !== "string" || raw.name.length > MAX_NAME_LENGTH || raw.name.trim().length===0){
+    return null;
+  }
+  let normalized = {name: raw.name.trim(), status: raw.status, online: raw.online, latencyMs: raw.latencyMs};
+  return normalized;
 }
 
 /**
@@ -44,7 +34,23 @@ function normalizeService(raw) {
  *   { services: [], rejected: 0, error: "invalid report" }
  */
 function parseStatusReport(jsonText) {
-  // TODO Mission 1
+  try{
+    let json_value = JSON.parse(jsonText);
+    let output = [];
+    let rejected = 0;
+    json_value.services.forEach(element => {
+      if(normalizeService(element) !== null){
+        output.push(element);
+      }
+      else{
+        rejected++;
+      }
+    });
+    return {services: output, rejected: rejected, error: null};
+}
+catch(error){
+  return { services: [], rejected: 0, error: "invalid report" };
+}
 }
 
 // Lets Node's require() see these functions. The browser simply ignores this block.
